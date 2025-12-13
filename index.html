@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>關西三代同堂親子悠遊行</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        /* 自定義樣式 */
+        body {
+            background-color: #f8f9fa;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        /* Header 樣式 */
+        .trip-header {
+            background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+            color: white;
+            padding: 3rem 1rem;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* 時間軸容器 */
+        .timeline-container {
+            position: relative;
+            padding-left: 50px; /* 留空間給左側的時間軸線和圖示 */
+        }
+
+        /* 時間軸垂直線 */
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 24px; /* 線的位置 */
+            top: 10px;
+            bottom: 20px;
+            width: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+        }
+
+        /* 每一個行程項目 */
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        /* 時間軸左側的圓形圖示標記 */
+        .timeline-marker {
+            position: absolute;
+            left: -50px; /* 相對於 timeline-container 的位移 */
+            top: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1;
+            border: 4px solid #f8f9fa; /* 外圈白邊讓它與背景區隔 */
+        }
+
+        /* 卡片樣式調整 */
+        .card-timeline {
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        /* 可點擊的卡片標題頭 */
+        .card-header-clickable {
+            cursor: pointer;
+            background-color: white;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .card-header-clickable:hover {
+            background-color: #f1f3f5;
+        }
+
+        /* 展開/收合的箭頭動畫 */
+        .expand-icon {
+            transition: transform 0.3s ease;
+        }
+        /* 當卡片展開時，旋轉箭頭 (Bootstrap 會在展開元素上加 'show' class，我們利用這個特性) */
+        .collapse.show ~ .card-header-clickable .expand-icon, /* 這行在某些結構下可能不適用，改用 JS 控制或更複雜的 CSS selector */
+        [aria-expanded="true"] .expand-icon {
+             transform: rotate(180deg);
+        }
+
+
+        /* 詳細資訊區域樣式 */
+        .details-section h6 {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+        .details-section h6 .material-icons {
+            font-size: 1.1rem;
+            margin-right: 5px;
+        }
+        .details-section ul {
+            padding-left: 1.2rem;
+            margin-bottom: 0;
+        }
+        .details-section li {
+            font-size: 0.95rem;
+            margin-bottom: 0.3rem;
+        }
+
+        /* 類型顏色定義 (對應 JSON 中的 type) */
+        .type-transport { background-color: #6c757d; } /* 灰色 - 交通 */
+        .type-hotel { background-color: #0d6efd; } /* 藍色 - 飯店 */
+        .type-activity { background-color: #198754; } /* 綠色 - 活動 */
+        .type-food { background-color: #fd7e14; } /* 橘色 - 餐飲 */
+        .type-attractions { background-color: #d63384; } /* 粉色 - 景點 */
+        .type-warning { background-color: #dc3545; } /* 紅色 - 警告 */
+        
+        /* 天數分隔標題 */
+        .day-divider {
+            padding: 1rem 0;
+            margin: 2rem 0 1.5rem 0;
+            border-bottom: 2px solid #dee2e6;
+            color: #212529;
+        }
+        .day-theme {
+             font-size: 0.9em;
+             color: #666;
+             font-weight: normal;
+             margin-left: 10px;
+        }
+
+        /* 響應式圖片 */
+        .stop-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // =========================================
+        // 1. JSON 資料來源 (您提供的完整資料)
+        // =========================================
+        const itineraryData = {
+          "meta": {
+            "title": "關西三代同堂親子悠遊行",
+            "dates": "2026-02-19 ~ 2026-02-23",
+            "travelers": "7大2小",
+            "baseHotel": "Remm Plus Kobe Sannomiya"
+          },
+          "days": [
+            {
+              "dayNum": 1,
+              "date": "02/19 (四)",
+              "title": "神戶：異人館與港灣夜景",
+              "theme": "浪漫神戶",
+              "image": "/image?query=Kobe+Kitano+Ijinkan+Starbucks+exterior&aspect=16:9",
+              "stops": [
+                { "time": "12:30", "name": "抵達神戶機場 (UKB)", "type": "transport", "desc": "班機抵達，領取行李。", "lat": 34.6328, "lng": 135.2239, "icon": "flight_land" },
+                { "time": "14:00", "name": "Check-in: Remm Plus 神戶三宮", "type": "hotel", "desc": "車站直結飯店。先寄放行李。", "lat": 34.6946, "lng": 135.1953, "icon": "hotel", "img": "/image?query=Remm+Plus+Kobe+Sannomiya+hotel&aspect=16:9" },
+                { "time": "14:45", "name": "北野異人館街 & 星巴克", "type": "activity", "desc": "參觀洋風建築，並在著名的『星巴克神戶北野異人館店』休息。", "lat": 34.7005, "lng": 135.1906, "icon": "coffee", "img": "/image?query=Starbucks+Kobe+Kitano+Ijinkan+interior&aspect=16:9", "tips": ["星巴克是由百年洋館改建", "若沒位子可外帶到旁邊廣場", "北野坡道較陡，長輩請慢行"], "alternatives": ["神戶布引香草園 (纜車看風景)", "相樂園 (日式庭園)"] },
+                { "time": "16:30", "name": "生田神社", "type": "activity", "desc": "返回三宮途中的能量景點，以戀愛結緣聞名。", "lat": 34.6958, "lng": 135.1905, "icon": "temple_hindu", "tips": ["就在東急手創館後方", "傍晚氣氛莊嚴寧靜"], "alternatives": ["三宮中心街購物", "大丸百貨神戶店"] },
+                { "time": "17:30", "name": "晚餐：Saizeriya 三宮Center街", "type": "food", "desc": "位於商店街內，適合家庭的平價義式餐廳。", "lat": 34.6923, "lng": 135.1945, "icon": "restaurant", "alternatives": ["神戶三宮 Center Plaza 地下美食街", "吉兵衛豬排飯"] },
+                { "time": "19:00", "name": "神戶港散策 (Harborland)", "type": "activity", "desc": "欣賞神戶港塔夜景，漫步美利堅公園。", "lat": 34.682, "lng": 135.1865, "icon": "directions_boat", "img": "/gen?prompt=Kobe+Port+Tower+illuminated+at+night+reflection+in+water&aspect=16:9", "tips": ["可搭乘City Loop巴士或從三宮步行約20分", "必拍BE KOBE標誌"], "alternatives": ["摩賽克廣場購物", "神戶煉瓦倉庫"] }
+              ]
+            },
+            {
+              "dayNum": 2,
+              "date": "02/20 (五)",
+              "title": "京都：鐵道、紅葉名所與數位藝術",
+              "theme": "古今交融",
+              "image": "/gen?prompt=Kyoto+street+with+traditional+machiya+and+modern+art&aspect=16:9",
+              "stops": [
+                { "time": "09:30", "name": "移動：JR前往京都", "type": "transport", "desc": "新快速直達京都站 (約52分)。", "lat": 34.6946, "lng": 135.1953, "icon": "train" },
+                { "time": "10:30", "name": "京都鐵道博物館", "type": "activity", "desc": "必訪！扇形車庫與蒸汽火車，午餐於館內享用。", "lat": 34.9863, "lng": 135.7424, "icon": "train", "img": "/image?query=Kyoto+Railway+Museum+steam+train&aspect=16:9", "alternatives": ["京都水族館 (就在旁邊)", "梅小路公園市集"] },
+                { "time": "13:30", "name": "Blue Bottle Coffee (南禪寺)", "type": "food", "desc": "由百年町家改建的絕美咖啡店。需轉乘地鐵至『蹴上站』。", "lat": 35.0113, "lng": 135.7925, "icon": "coffee", "img": "/image?query=Blue+Bottle+Coffee+Kyoto+Nanzenji+exterior&aspect=16:9", "tips": ["人氣極高，可能需排隊", "若太久可外帶去南禪寺喝"], "alternatives": ["南禪寺順正 (湯豆腐)", "Inoda Coffee 本店"] },
+                { "time": "15:00", "name": "永觀堂 (禪林寺)", "type": "activity", "desc": "就在Blue Bottle附近，以回首阿彌陀佛像聞名。", "lat": 35.0143, "lng": 135.7954, "icon": "temple_buddhist", "tips": ["最後入場約 16:00", "境內多階梯，長輩量力而為"], "alternatives": ["南禪寺水路閣 (打卡聖地)", "平安神宮"] },
+                { "time": "17:30", "name": "teamLab Biovortex Kyoto", "type": "activity", "desc": "2025新開幕！位於京都站南側的大型常設展。", "lat": 34.983, "lng": 135.758, "icon": "light_mode", "img": "/gen?prompt=teamLab+digital+art+exhibition+glowing+forest+abstract&aspect=16:9", "tips": ["需事先預約時段", "位於京都站八條口(南口)徒步圈", "沈浸式光影適合小孩"], "alternatives": ["京都塔觀景台", "Aeon Mall Kyoto (購物/晚餐)"] }
+              ]
+            },
+            {
+              "dayNum": 3,
+              "date": "02/21 (六)",
+              "title": "大阪：動物、藝術與下町風情",
+              "theme": "大阪活力",
+              "image": "/image?query=Osaka+City+Museum+of+Fine+Arts+facade&aspect=16:9",
+              "stops": [
+                { "time": "09:30", "name": "移動：前往天王寺", "type": "transport", "desc": "JR三宮→大阪→天王寺。", "lat": 34.6472, "lng": 135.5135, "icon": "train" },
+                { "time": "10:30", "name": "大阪天王寺動物園", "type": "activity", "desc": "百年歷史動物園，位於市中心。", "lat": 34.6506, "lng": 135.5097, "icon": "pets", "alternatives": ["Kids Plaza Osaka (室內兒童博物館)", "大阪海遊館 (較遠)"] },
+                { "time": "13:00", "name": "午餐：新世界串炸 / Saizeriya", "type": "food", "desc": "步行至新世界區域用餐，充滿昭和風情。", "lat": 34.652, "lng": 135.5065, "icon": "restaurant", "tips": ["『達摩串炸』是名店", "Saizeriya 在阿倍野橋附近"], "alternatives": ["Q's Mall 美食街", "天王寺MIO餐廳層"] },
+                { "time": "14:30", "name": "大阪市立美術館", "type": "activity", "desc": "2025重新開幕！位於天王寺公園內，建築本身即是藝術。", "lat": 34.65, "lng": 135.51, "icon": "palette", "img": "/image?query=Osaka+City+Museum+of+Fine+Arts+Tennoji+Park&aspect=16:9", "tips": ["館前庭園很美", "若孩子沒興趣可去旁邊的『慶澤園』"], "alternatives": ["通天閣 (溜滑梯/觀景)", "阿倍野 Harukas 展望台"] },
+                { "time": "16:30", "name": "通天閣 & 新世界散步", "type": "activity", "desc": "體驗大阪著名的地標與熱鬧街道。", "lat": 34.6525, "lng": 135.5063, "icon": "attractions", "img": "/image?query=Tsutenkaku+tower+Shinsekai+street&aspect=16:9", "alternatives": ["Spa World 世界大溫泉", "MEGA唐吉訶德 新世界店"] }
+              ]
+            },
+            {
+              "dayNum": 4,
+              "date": "02/22 (日)",
+              "title": "奈良：鹿與金魚的奇幻之旅",
+              "theme": "古都奇遇",
+              "image": "/image?query=Nara+Park+deer+relaxing&aspect=16:9",
+              "stops": [
+                { "time": "09:00", "name": "移動：近鐵前往奈良", "type": "transport", "desc": "阪神/近鐵直通快速急行。", "lat": 34.6845, "lng": 135.8273, "icon": "train" },
+                { "time": "10:30", "name": "奈良公園 & 東大寺", "type": "activity", "desc": "世界最大木造建築大佛殿與餵鹿體驗。", "lat": 34.689, "lng": 135.8398, "icon": "temple_buddhist", "tips": ["必看：東大寺大佛", "注意：鹿會咬紙，小心地圖"], "alternatives": ["興福寺 (離車站近/五重塔)", "春日大社 (參道風景美但較遠)"] },
+                { "time": "13:00", "name": "午餐：東向商店街", "type": "food", "desc": "近鐵奈良站旁，選擇豐富。", "lat": 34.6836, "lng": 135.8286, "icon": "restaurant", "tips": ["推薦：中谷堂現搗麻糬 (飯後點心)", "麵闘庵 (豆皮烏龍麵)"], "alternatives": ["釜飯志津香 (需排隊)", "平宗柿葉壽司 (外帶)"] },
+                { "time": "14:30", "name": "⚠️ 生駒山上遊樂園 (冬季休園)", "type": "warning", "desc": "注意：冬季(12-3月)通常關閉。請直接執行下方備案。", "lat": 34.68, "lng": 135.68, "icon": "block", "tips": ["冬季山上風大且無設施開放", "建議改去市內的 M!Nara"], "alternatives": ["M!Nara 金魚博物館", "奈良町機關玩具館"] },
+                { "time": "15:00", "name": "備案 A：M!Nara 金魚博物館", "type": "activity", "desc": "位於 M!Nara 購物中心 4F，華麗的藝術水族館，適合親子拍照。", "lat": 34.6805, "lng": 135.815, "icon": "water_medium", "img": "/image?query=Nara+Kingyo+Museum+goldfish+art&aspect=16:9", "tips": ["JR奈良/近鐵奈良有免費接駁車", "室內不受天氣影響"], "alternatives": ["奈良國立博物館 (佛像)", "猿澤池 (散步)"] },
+                { "time": "15:00", "name": "備案 B：奈良町機關玩具館", "type": "activity", "desc": "免費參觀的古民家，展示傳統機關玩具，孩子可動手玩。", "lat": 34.678, "lng": 135.8315, "icon": "toys", "tips": ["適合 2-8 歲兒童", "體驗傳統日本童玩"], "alternatives": ["奈良町格子之家 (參觀傳統建築)", "猿澤池"] }
+              ]
+            },
+            {
+              "dayNum": 5,
+              "date": "02/23 (一)",
+              "title": "最終日：與動物道別",
+              "theme": "溫馨告別",
+              "image": "/image?query=Kobe+Animal+Kingdom+plants&aspect=16:9",
+              "stops": [
+                { "time": "09:30", "name": "神戶動物王國", "type": "activity", "desc": "搭機前的最佳景點。行李可寄放。", "lat": 34.6545, "lng": 135.2166, "icon": "pets" },
+                { "time": "11:45", "name": "前往機場", "type": "transport", "desc": "搭乘 Port Liner 至機場。", "lat": 34.6328, "lng": 135.2239, "icon": "flight_takeoff" }
+              ]
+            }
+          ]
+        };
+
+        // =========================================
+        // 2. 輔助函數：處理圖片佔位符
+        // =========================================
+        // 將 JSON 中的假圖片路徑轉換為公開的 placeholder 圖片服務，以便展示
+        function getImageUrl(urlString, title) {
+            if (!urlString) return null;
+            // 簡單的編碼處理，產生一個帶有標題的灰色圖片
+            const encodedTitle = encodeURIComponent(title || 'Image');
+            return `https://placehold.co/600x338/e9ecef/6c757d?text=${encodedTitle}`;
+        }
+
+        // =========================================
+        // 3. 核心渲染邏輯
+        // =========================================
+        function renderItinerary() {
+            const container = document.getElementById('app-container');
+            let htmlContent = '';
+
+            // --- 渲染 Header (Meta Info) ---
+            htmlContent += `
+                <header class="trip-header text-center">
+                    <div class="container">
+                        <h1 class="display-5 fw-bold">${itineraryData.meta.title}</h1>
+                        <p class="lead mb-2">
+                            <span class="badge bg-light text-dark me-2"><i class="material-icons align-middle fs-6">calendar_today</i> ${itineraryData.meta.dates}</span>
+                            <span class="badge bg-light text-dark"><i class="material-icons align-middle fs-6">group</i> ${itineraryData.meta.travelers}</span>
+                        </p>
+                        <p class=""><i class="material-icons align-middle fs-6">hotel</i> 住宿基地: ${itineraryData.meta.baseHotel}</p>
+                    </div>
+                </header>
+                <main class="container pb-5">
+            `;
+
+            // --- 渲染每一天 (Days Loop) ---
+            itineraryData.days.forEach(day => {
+                // 天數分隔線
+                htmlContent += `
+                    <h3 class="day-divider">
+                        Day ${day.dayNum} - ${day.date} 
+                        <span class="day-theme"><i class="material-icons align-middle fs-6">style</i> ${day.theme}</span>
+                    </h3>
+                    <h4 class="mb-4">${day.title}</h4>
+                    <div class="timeline-container">
+                `;
+
+                // --- 渲染當天的每個行程點 (Stops Loop) ---
+                day.stops.forEach((stop, index) => {
+                    // 生成唯一的 ID 用於 Bootstrap Collapse 控制
+                    const stopId = `collapse-day${day.dayNum}-stop${index}`;
+                    // 根據 type 決定顏色 class，若無對應則預設為灰色
+                    const typeClass = `type-${stop.type}` || 'bg-secondary';
+                    // 處理圖片
+                    const imageUrl = getImageUrl(stop.img, stop.name);
+                    // Google Maps Link
+                    const mapLink = `https://www.google.com/maps/search/?api=1&query=${stop.lat},${stop.lng}`;
+
+                    htmlContent += `
+                        <div class="timeline-item">
+                            <div class="timeline-marker ${typeClass}">
+                                <span class="material-icons">${stop.icon}</span>
+                            </div>
+                            
+                            <div class="card card-timeline">
+                                <div class="card-header-clickable d-flex justify-content-between align-items-center" 
+                                     data-bs-toggle="collapse" 
+                                     data-bs-target="#${stopId}" 
+                                     aria-expanded="false" 
+                                     aria-controls="${stopId}">
+                                    <div class="d-flex align-items-center overflow-hidden">
+                                        <span class="badge bg-dark me-3" style="min-width: 60px;">${stop.time}</span>
+                                        <h5 class="mb-0 text-truncate" style="color: #333;">
+                                            ${stop.name}
+                                        </h5>
+                                    </div>
+                                    <span class="material-icons expand-icon text-muted">expand_more</span>
+                                </div>
+
+                                <div id="${stopId}" class="collapse">
+                                    <div class="card-body bg-white">
+                                        ${imageUrl ? `<img src="${imageUrl}" alt="${stop.name}" class="stop-img">` : ''}
+                                        
+                                        <p class="card-text fs-5">${stop.desc}</p>
+                                        
+                                        <div class="details-section">
+                                            ${stop.tips && stop.tips.length > 0 ? `
+                                                <h6 class="text-primary"><span class="material-icons">lightbulb</span>貼心小提醒</h6>
+                                                <ul class="text-secondary">
+                                                    ${stop.tips.map(tip => `<li>${tip}</li>`).join('')}
+                                                </ul>
+                                            ` : ''}
+
+                                            ${stop.alternatives && stop.alternatives.length > 0 ? `
+                                                <h6 class="text-success"><span class="material-icons">alt_route</span>替代/附近選擇</h6>
+                                                <ul class="text-secondary">
+                                                    ${stop.alternatives.map(alt => `<li>${alt}</li>`).join('')}
+                                                </ul>
+                                            ` : ''}
+                                        </div>
+                                        
+                                        <div class="mt-3 text-end">
+                                             <a href="${mapLink}" target="_blank" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center">
+                                                <span class="material-icons fs-6 me-1">map</span> 在 Google 地圖查看
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // 結束時間軸容器
+                htmlContent += `</div>`; // end timeline-container
+            });
+
+            htmlContent += `</main>`; // end main container
+            
+            // 將生成的 HTML 注入到頁面中
+            container.innerHTML = htmlContent;
+        }
+
+        // =========================================
+        // 4. 執行渲染
+        // =========================================
+        // 當頁面載入完成後執行
+        document.addEventListener('DOMContentLoaded', renderItinerary);
+
+    </script>
+</body>
+</html>
