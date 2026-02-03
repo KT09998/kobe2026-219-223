@@ -1,222 +1,473 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>關西三代同堂親子悠遊行</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #2c3e50;
-            --accent: #e74c3c;
-            --bg: #f5f7fa;
-            --card-bg: #ffffff;
-        }
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
-        
-        /* 頭部設計 */
-        header { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 20px; text-align: center; }
-        header h1 { margin: 0; font-size: 1.5rem; }
-        header p { margin: 5px 0 0; opacity: 0.9; font-size: 0.9rem; }
+import React, { useRef, useState, useEffect } from 'react';
+import { Plane, MapPin, Coffee, Utensils, Camera, Train, Info, Bus, ShoppingBag, CheckSquare, Download, AlertCircle, Star, Award, Footprints, Moon, Mountain } from 'lucide-react';
 
-        /* 分頁標籤 */
-        .tabs { display: flex; overflow-x: auto; background: white; padding: 10px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
-        .tab { flex: 0 0 auto; padding: 8px 16px; margin: 0 5px; border-radius: 20px; background: #eee; color: #666; cursor: pointer; font-size: 0.9rem; transition: all 0.3s; border: none; }
-        .tab.active { background: var(--accent); color: white; font-weight: bold; }
+const ItineraryApp = () => {
+  const itineraryRef = useRef(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isLibLoaded, setIsLibLoaded] = useState(false);
 
-        /* 行程卡片列表 */
-        .content { max-width: 800px; margin: 20px auto; padding: 0 15px; }
-        .day-container { display: none; animation: fadeIn 0.5s; }
-        .day-container.active { display: block; }
+  useEffect(() => {
+    if (window.html2canvas) {
+      setIsLibLoaded(true);
+      return;
+    }
 
-        .day-title { font-size: 1.2rem; border-left: 5px solid var(--accent); padding-left: 10px; margin-bottom: 20px; color: var(--primary); font-weight: bold; display: flex; flex-direction: column; }
-        .day-title span { font-size: 0.9rem; color: #666; font-weight: normal; margin-top: 3px; }
-
-        /* 時間軸卡片 */
-        .timeline-item { position: relative; padding-left: 30px; margin-bottom: 25px; }
-        .timeline-item::before { content: ''; position: absolute; left: 7px; top: 0; bottom: -25px; width: 2px; background: #ddd; }
-        .timeline-item:last-child::before { display: none; }
-        
-        .time-badge { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid white; box-shadow: 0 0 0 2px var(--accent); }
-
-        .card { background: var(--card-bg); border-radius: 12px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
-        .time { font-weight: bold; color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
-        .place-name { font-size: 1.1rem; font-weight: bold; margin: 0; color: var(--primary); }
-        .type-icon { color: #999; }
-
-        .desc { font-size: 0.95rem; line-height: 1.5; color: #555; margin-bottom: 10px; }
-        
-        .tips-box { background: #fff8e1; border-radius: 8px; padding: 10px; font-size: 0.85rem; color: #795548; margin-top: 10px; border-left: 3px solid #ffc107; }
-        .tips-box strong { display: block; margin-bottom: 4px; }
-        .tips-box ul { margin: 0; padding-left: 20px; }
-
-        .btn-map { display: inline-flex; align-items: center; justify-content: center; width: 100%; margin-top: 15px; padding: 10px 0; background: #e8f0fe; color: #1a73e8; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem; transition: background 0.2s; }
-        .btn-map:hover { background: #d2e3fc; }
-        .btn-map i { margin-right: 5px; font-size: 1.1rem; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
-</head>
-<body>
-
-<header>
-    <h1 id="trip-title">載入中...</h1>
-    <p id="trip-dates"></p>
-    <p style="font-size:0.8rem; margin-top:5px;">成員: <span id="trip-travelers"></span> | 住宿: <span id="trip-hotel"></span></p>
-</header>
-
-<div class="tabs" id="tabs-container">
-    </div>
-
-<div class="content" id="content-container">
-    </div>
-
-<script>
-    // 您的 JSON 資料放在這裡
-    const tripData = {
-      "meta": {
-        "title": "關西三代同堂親子悠遊行",
-        "dates": "2026-02-19 ~ 2026-02-23",
-        "travelers": "7大2小",
-        "baseHotel": "Remm Plus Kobe Sannomiya"
-      },
-      "days": [
-        {
-          "dayNum": 1,
-          "date": "02/19 (四)",
-          "title": "神戶：異人館與港灣夜景",
-          "stops": [
-            { "time": "12:30", "name": "抵達神戶機場 (UKB)", "type": "transport", "desc": "班機抵達，領取行李後，搭乘『Port Liner』往三宮。", "lat": 34.6328, "lng": 135.2239, "icon": "flight_land" },
-            { "time": "14:00", "name": "Check-in: Remm Plus 神戶三宮", "type": "hotel", "desc": "飯店位於車站共構高層。大廳在17樓，景觀極佳。請先寄放行李。", "lat": 34.6946, "lng": 135.1953, "icon": "hotel" },
-            { "time": "14:45", "name": "北野異人館街 & 星巴克", "type": "activity", "desc": "這間星巴克由1907年建造的美國人住宅改建，充滿復古洋風情調。", "lat": 34.7005, "lng": 135.1906, "icon": "coffee", "tips": ["拍照熱點：店門口的綠白色木造外觀。", "建議：長輩可搭乘City Loop巴士。"] },
-            { "time": "16:30", "name": "生田神社", "type": "activity", "desc": "擁有一千八百年歷史的古社，以祈求戀愛結緣聞名。", "lat": 34.6958, "lng": 135.1905, "icon": "temple_hindu", "tips": ["必試：『水占卜』(水みくじ)。"] },
-            { "time": "17:30", "name": "晚餐：Saizeriya 三宮Center街", "type": "food", "desc": "位於商店街內，環境寬敞適合帶小孩。", "lat": 34.6923, "lng": 135.1945, "icon": "restaurant" },
-            { "time": "19:00", "name": "神戶港散策 (Harborland)", "type": "activity", "desc": "漫步美利堅公園，欣賞著名的『神戶港塔』與『BE KOBE』地標。", "lat": 34.682, "lng": 135.1865, "icon": "directions_boat", "tips": ["拍照：BE KOBE 紀念碑晚上會點燈。", "交通：回程可搭計程車回飯店。"] }
-          ]
-        },
-        {
-          "dayNum": 2,
-          "date": "02/20 (五)",
-          "title": "京都：鐵道、紅葉名所與數位藝術",
-          "stops": [
-            { "time": "09:30", "name": "移動：JR前往京都", "type": "transport", "desc": "搭乘 JR 新快速列車直達京都站 (約52分)。", "lat": 34.6946, "lng": 135.1953, "icon": "train" },
-            { "time": "10:30", "name": "京都鐵道博物館", "type": "activity", "desc": "全日本最大級的鐵道博物館，展示53輛車輛。", "lat": 34.9863, "lng": 135.7424, "icon": "train", "tips": ["必搭：『SL Steam號』蒸汽火車體驗。", "設施：二樓有巨大的鐵道模型場景秀。"] },
-            { "time": "13:30", "name": "Blue Bottle Coffee (南禪寺)", "type": "food", "desc": "由百年京町家旅館改建，融合傳統與現代。", "lat": 35.0113, "lng": 135.7925, "icon": "coffee" },
-            { "time": "15:00", "name": "永觀堂 (禪林寺)", "type": "activity", "desc": "自古有『紅葉的永觀堂』美譽。", "lat": 35.0143, "lng": 135.7954, "icon": "temple_buddhist", "tips": ["典故：注意看本尊佛像的頭是轉向左邊的。"] },
-            { "time": "17:30", "name": "teamLab Biovortex Kyoto", "type": "activity", "desc": "結合自然與數位藝術的大型常設展。", "lat": 34.983, "lng": 135.758, "icon": "light_mode", "tips": ["預約：務必提前上網預約時段。", "互動：作品會隨人體動作變化。"] }
-          ]
-        },
-        {
-          "dayNum": 3,
-          "date": "02/21 (六)",
-          "title": "大阪：動物、藝術與下町風情",
-          "stops": [
-            { "time": "09:30", "name": "移動：前往天王寺", "type": "transport", "desc": "搭乘JR至大阪站轉乘環狀線至天王寺站。", "lat": 34.6472, "lng": 135.5135, "icon": "train" },
-            { "time": "10:30", "name": "大阪天王寺動物園", "type": "activity", "desc": "擁有百年歷史的動物園，致力於『生態展示』。", "lat": 34.6506, "lng": 135.5097, "icon": "pets", "tips": ["亮點：『非洲熱帶草原區』可以看到長頸鹿、斑馬與獅子在同一視野中。"] },
-            { "time": "13:00", "name": "午餐：新世界串炸 / Saizeriya", "type": "food", "desc": "新世界充滿昭和復古風情。品嚐大阪名物『串炸』。", "lat": 34.652, "lng": 135.5065, "icon": "restaurant" },
-            { "time": "14:30", "name": "大阪市立美術館", "type": "activity", "desc": "位於天王寺公園內，融合了現代設計與歷史建築。", "lat": 34.65, "lng": 135.51, "icon": "palette", "tips": ["周邊：美術館前的『慶澤園』是著名的日式庭園。"] },
-            { "time": "16:30", "name": "通天閣 & 新世界散步", "type": "activity", "desc": "大阪的地標塔，新世界區域有著誇張的立體招牌。", "lat": 34.6525, "lng": 135.5063, "icon": "attractions", "tips": ["必摸：比利肯 (Billiken) 神像的腳底。"] }
-          ]
-        },
-        {
-          "dayNum": 4,
-          "date": "02/22 (日)",
-          "title": "奈良：世界遺產深度巡禮",
-          "stops": [
-            { "time": "09:00", "name": "移動：近鐵前往奈良", "type": "transport", "desc": "搭乘阪神/近鐵直通『快速急行』，約90分直達。", "lat": 34.6845, "lng": 135.8273, "icon": "train" },
-            { "time": "10:40", "name": "奈良國立博物館", "type": "activity", "desc": "位於奈良公園入口，以佛教美術收藏聞名。", "lat": 34.6833, "lng": 135.8356, "icon": "museum", "tips": ["鹿：博物館周圍的鹿比較溫馴。"] },
-            { "time": "12:00", "name": "午餐：公園周邊", "type": "food", "desc": "建議在博物館附近簡單用餐，節省時間。", "lat": 34.685, "lng": 135.838, "icon": "restaurant" },
-            { "time": "13:30", "name": "奈良公園 & 東大寺", "type": "activity", "desc": "穿越鹿群，參拜世界遺產東大寺，瞻仰巨大的盧舍那佛。", "lat": 34.689, "lng": 135.8398, "icon": "temple_buddhist", "tips": ["體驗：大佛殿右後方有『大佛的鼻孔』，鑽過去保平安。"] },
-            { "time": "15:30", "name": "春日大社", "type": "activity", "desc": "沿著佈滿石燈籠的原始森林參道漫步。", "lat": 34.6814, "lng": 135.8484, "icon": "forest", "tips": ["氛圍：參道兩旁有數千座石燈籠，氣氛神聖。"] },
-            { "time": "16:45", "name": "興福寺", "type": "activity", "desc": "奈良的地標『五重塔』所在地。", "lat": 34.6828, "lng": 135.8322, "icon": "temple_buddhist", "tips": ["位置：離近鐵奈良站非常近，適合做為最後一站。"] },
-            { "time": "17:30", "name": "晚餐：東向商店街", "type": "food", "desc": "位於近鐵奈良站旁的有頂商店街。", "lat": 34.6836, "lng": 135.8286, "icon": "storefront", "tips": ["必買：中谷堂的現搗艾草麻糬。"] }
-          ]
-        },
-        {
-          "dayNum": 5,
-          "date": "02/23 (一)",
-          "title": "最終日：與動物道別",
-          "stops": [
-            { "time": "09:30", "name": "神戶動物王國", "type": "activity", "desc": "搭機前的最佳景點。全天候溫室設計，無懼風雨。", "lat": 34.6545, "lng": 135.2166, "icon": "pets", "tips": ["必看：10:00 左右通常有『飛鳥秀』。"] },
-            { "time": "11:45", "name": "前往機場", "type": "transport", "desc": "搭乘 Port Liner 至神戶機場。", "lat": 34.6328, "lng": 135.2239, "icon": "flight_takeoff", "tips": ["注意：機場內餐廳選擇較少，建議在動物王國吃點輕食。"] }
-          ]
-        }
-      ]
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    script.async = true;
+    
+    script.onload = () => {
+      setIsLibLoaded(true);
+    };
+    
+    script.onerror = () => {
+      console.error("Failed to load html2canvas");
+      alert("匯出功能元件載入失敗，請檢查網路連線或重新整理頁面。");
     };
 
-    // 初始化頁面
-    document.getElementById('trip-title').innerText = tripData.meta.title;
-    document.getElementById('trip-dates').innerText = tripData.meta.dates;
-    document.getElementById('trip-travelers').innerText = tripData.meta.travelers;
-    document.getElementById('trip-hotel').innerText = tripData.meta.baseHotel;
+    document.body.appendChild(script);
+    
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
 
-    const tabsContainer = document.getElementById('tabs-container');
-    const contentContainer = document.getElementById('content-container');
-
-    tripData.days.forEach((day, index) => {
-        // 建立 Tab
-        const tab = document.createElement('button');
-        tab.className = `tab ${index === 0 ? 'active' : ''}`;
-        tab.innerText = `Day ${day.dayNum}`;
-        tab.onclick = () => switchTab(index);
-        tabsContainer.appendChild(tab);
-
-        // 建立內容區塊
-        const dayDiv = document.createElement('div');
-        dayDiv.className = `day-container ${index === 0 ? 'active' : ''}`;
-        dayDiv.id = `day-${index}`;
-        
-        // 標題
-        dayDiv.innerHTML = `
-            <div class="day-title">
-                ${day.date} ${day.title}
-                <span>${day.theme ? '主題: ' + day.theme : ''}</span>
-            </div>
-        `;
-
-        // 行程列表
-        day.stops.forEach(stop => {
-            const stopHtml = `
-                <div class="timeline-item">
-                    <div class="time-badge"></div>
-                    <div class="card">
-                        <div class="card-header">
-                            <div>
-                                <span class="time">${stop.time}</span>
-                                <h3 class="place-name">${stop.name}</h3>
-                            </div>
-                            <i class="material-icons type-icon">${stop.icon || 'place'}</i>
-                        </div>
-                        <div class="desc">${stop.desc}</div>
-                        ${stop.tips ? `
-                            <div class="tips-box">
-                                <strong>💡 小撇步：</strong>
-                                <ul>${stop.tips.map(t => `<li>${t}</li>`).join('')}</ul>
-                            </div>
-                        ` : ''}
-                        <a href="https://www.google.com/maps/search/?api=1&query=${stop.lat},${stop.lng}" target="_blank" class="btn-map">
-                            <i class="material-icons">map</i> 開啟地圖導航
-                        </a>
-                    </div>
-                </div>
-            `;
-            dayDiv.innerHTML += stopHtml;
-        });
-
-        contentContainer.appendChild(dayDiv);
-    });
-
-    function switchTab(index) {
-        document.querySelectorAll('.tab').forEach((t, i) => {
-            t.classList.toggle('active', i === index);
-        });
-        document.querySelectorAll('.day-container').forEach((d, i) => {
-            d.classList.toggle('active', i === index);
-        });
-        window.scrollTo(0, 0);
+  const handleDownloadImage = async () => {
+    if (!isLibLoaded || !window.html2canvas) {
+      alert("匯出功能尚未準備好，請稍候再試。");
+      return;
     }
-</script>
 
-</body>
-</html>
+    setIsGenerating(true);
+    try {
+      const element = itineraryRef.current;
+      const canvas = await window.html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        x: 0,
+        y: 0
+      });
+
+      const link = document.createElement('a');
+      link.download = '神京阪自由行_優化攻略版.jpg';
+      link.href = canvas.toDataURL('image/jpeg', 0.9);
+      link.click();
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("匯出圖片失敗，請重試。");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const itineraryData = {
+    title: "神京阪自由行：美食與景點深度版",
+    date: "2026.02.19 - 02.23",
+    duration: "5天4夜",
+    hotel: "Remm Plus 神戶三宮",
+    transportInfo: {
+      title: "交通策略：JR 關西迷你鐵路周遊券",
+      usageDays: "Day 2, Day 3, Day 4 (連續3天)",
+      scope: "神戶、京都、大阪、奈良 (JR線)",
+      note: "3天 3,000日圓。Day 4 去奈良搭 JR 往返，搭配「奈良公車一日券」即可解決移動問題。"
+    },
+    days: [
+      {
+        id: 1,
+        dayLabel: "Day 1",
+        date: "02/19 (四)",
+        location: "神戶：香草園與港灣夜景",
+        gourmet: [
+          { name: "老祥記 (Roshoki)", type: "爆汁豬肉包", tag: "排隊名店", dist: "南京町廣場 (5m)", desc: "百年老店，神戶唐人街必吃小吃。" },
+          { name: "Grill Ippei", type: "日式洋食", tag: "必比登推薦", dist: "距離 元町站 步行 5 分", desc: "必點漢堡排與經典歐姆蛋包飯。" },
+          { name: "Steak Land Kobe", type: "神戶牛鐵板燒", tag: "高CP值", dist: "距離 阪急三宮站 步行 2 分", desc: "午間套餐超划算，現場鐵板料理。" },
+          { name: "Red Rock", type: "烤牛肉丼", tag: "人氣名店", dist: "距離 三宮高架下 步行 3 分", desc: "視覺效果滿分的生拌烤牛肉蓋飯。" },
+          { name: "Kannonya (観音屋)", type: "熱起司蛋糕", tag: "在地甜點", dist: "距離 元町商店街內", desc: "丹麥直送起司，融化後口感極佳。" },
+          { name: "神戶牛 八坐和", type: "神戶牛料理", tag: "必比登推薦", dist: "距離 三宮站 步行 5 分", desc: "專業神戶牛鑑定，品質極穩定。" }
+        ],
+        events: [
+          { time: "12:30", title: "抵達神戶機場 (UKB)", desc: "領取行李，搭乘 Port Liner 往三宮站。", icon: <Plane className="w-4 h-4" /> },
+          { time: "14:00", title: "飯店 Check-in / 寄放行李", desc: "飯店：Remm Plus 神戶三宮 (直結車站，極方便)。", icon: <MapPin className="w-4 h-4" /> },
+          { 
+            time: "14:45", 
+            title: "Blue Bottle Coffee 神戶店", 
+            desc: "位於舊居留地建築內休息。作為全家人搭纜車前的集合點，喝杯咖啡回暖。", 
+            tip: "休息約 30-45 分鐘，隨後步行或搭計程車前往新神戶站纜車點。",
+            icon: <Coffee className="w-4 h-4" /> 
+          },
+          { 
+            time: "15:45", 
+            title: "布引香草園纜車", 
+            desc: "搭乘約10分鐘的景觀纜車直達山頂。可以俯瞰神戶市區、港灣、甚至遠眺大阪灣與瀨戶內海。", 
+            tip: "景點重點：四季主題花園、充滿異國風情的德國古堡式建築、溫室餐廳及足湯區。",
+            isWarning: true,
+            note: "注意：冬季末班纜車下山約為 17:15 (平日) 或 20:15 (假日)，請務必確認當日時刻表以免受困山上。",
+            icon: <Mountain className="w-4 h-4" /> 
+          },
+          { 
+            time: "19:00", 
+            title: "神戶夜景 (推薦三選一)", 
+            desc: "視體力與天氣選擇最適合的觀景點：",
+            details: [
+                "A. 神戶港塔 (首選)：2024年全新翻修，可上露天頂樓360度俯瞰港灣，景觀最豐富。(23:00關 / 港元町站走5分)",
+                "B. 市役所1號館 24F (免費)：位於三宮市中心，近距離欣賞街道燈火，空間大且室內溫暖。(22:00關 / 三宮站走6分)",
+                "C. 維納斯橋 (浪漫)：近郊小山丘，視野開闊，是著名的戀人聖地，能看到完整的城市天際線。(全天 / 建議從三宮搭計程車約¥1500)"
+            ],
+            icon: <Moon className="w-4 h-4" /> 
+          },
+          { 
+            type: "backup", 
+            title: "備案：CITY LOOP 觀光巴士", 
+            time: "全日適用",
+            desc: "神戶經典復古綠色小巴士，串連各大景點（北野、美利堅公園、南京町）。",
+            icon: <Bus className="w-4 h-4" /> 
+          }
+        ]
+      },
+      {
+        id: 2,
+        dayLabel: "Day 2",
+        date: "02/20 (五)",
+        location: "京都：清水寺與鐵道之旅",
+        gourmet: [
+          { name: "Okaru (おかる)", type: "起司咖哩烏龍", tag: "必比登推薦", dist: "距離 祇園四條站 步行 3 分", desc: "深受藝妓喜愛的祇園老店。" },
+          { name: "麵屋 豬一 (Inoichi)", type: "清爽系拉麵", tag: "必比登推薦", dist: "距離 寺町通商店街 步行 2 分", desc: "A4黑毛和牛醬油拉麵，需排隊。" },
+          { name: "奧丹清水", type: "湯豆腐", tag: "百年老舖", dist: "距離 清水寺 步行 3 分", desc: "在日式庭園中享用精緻湯豆腐。" },
+          { name: "Hisago (ひさご)", type: "親子丼", tag: "排隊名店", dist: "距離 高台寺 步行 2 分", desc: "滑嫩雞蛋口感絕佳。" },
+          { name: "名代豬排 Katsukura", type: "炸豬排", tag: "在地推薦", dist: "距離 京都車站大樓 11F", desc: "京都發源的高級豬排店。" },
+          { name: "東洋亭", type: "百年漢堡排", tag: "老舖洋食", dist: "距離 京都車站 Porta 地下街", desc: "鋁箔包漢堡排與整顆番茄沙拉。" }
+        ],
+        events: [
+          { time: "09:00", title: "移動：JR三宮 → JR京都", desc: "使用 JR Pass，搭乘新快速 (約52分)。", icon: <Train className="w-4 h-4" /> },
+          { 
+            time: "10:00", 
+            title: "清水寺 & 二三年坂", 
+            desc: "漫步參拜清水舞台與石板老街。體驗京都歷史氣息。", 
+            tip: "交通建議：天氣良好建議從祇園或清水五條步行上山，沿途逛街最愜意；若體況不佳或遇雨，則建議從京都站搭計程車直達「五條坂」省力。",
+            icon: <Camera className="w-4 h-4" /> 
+          },
+          { 
+            time: "14:00", 
+            title: "京都鐵道博物館", 
+            desc: "親子必訪，展示數十輛實體列車與蒸氣火車。", 
+            action: "重要：一入館請先衝「SL Steam 蒸汽火車」售票機購買乘車券，熱門時段常提早售罄。",
+            icon: <Train className="w-4 h-4" /> 
+          },
+          { time: "17:30", title: "teamLab Kyoto", desc: "京都站南側新景點，沈浸式光影藝術體驗。", icon: <Camera className="w-4 h-4" /> },
+        ]
+      },
+      {
+        id: 3,
+        dayLabel: "Day 3",
+        date: "02/21 (六)",
+        location: "大阪：文具採買與市集",
+        gourmet: [
+          { name: "美津の (Mizuno)", type: "大阪燒", tag: "必比登推薦", dist: "距離 道頓堀看板 步行 2 分", desc: "山藥燒口感綿密，人氣第一。" },
+          { name: "會津屋 (Aizuya)", type: "元祖章魚燒", tag: "必比登推薦", dist: "梅田/天王寺/難波皆有店", desc: "不沾醬直接吃，品嚐高湯原味。" },
+          { name: "Yamachan (やまちゃん)", type: "章魚燒", tag: "必比登推薦", dist: "距離 天王寺站 步行 1 分", desc: "外酥內軟，高湯味濃郁。" },
+          { name: "串炸 Daruma (だるま)", type: "炸串", tag: "大阪名物", dist: "距離 通天閣 步行 1 分", desc: "「禁止二次沾醬」的老闆公仔。" },
+          { name: "自由軒", type: "名物咖哩", tag: "百年老店", dist: "距離 難波站 步行 3 分", desc: "將生蛋拌入咖哩飯的獨特吃法。" },
+          { name: "Rikuro 老爺爺", type: "起司蛋糕", tag: "排隊甜點", dist: "距離 戎橋筋商店街內", desc: "剛出爐搖晃的口感，必買伴手禮。" }
+        ],
+        events: [
+          { time: "09:30", title: "移動：前往天王寺", desc: "使用 JR Pass，JR三宮 → 大阪 → 天王寺。", icon: <Train className="w-4 h-4" /> },
+          { time: "10:30", title: "天王寺動物園", desc: "位於市中心，必看非洲草原區與北極熊。", icon: <MapPin className="w-4 h-4" /> },
+          { 
+            time: "14:30", 
+            title: "Shimojima (本町店)", 
+            desc: "五層樓文具包裝專賣店，文具控天堂。", 
+            tip: "Tip: 這裡可以辦理退稅，請記得帶護照。",
+            icon: <ShoppingBag className="w-4 h-4" /> 
+          },
+          { time: "17:00", title: "道頓堀 & 跑跑人", desc: "固力果看板拍照，晚餐於此解決。", icon: <Camera className="w-4 h-4" /> },
+        ]
+      },
+      {
+        id: 4,
+        dayLabel: "Day 4",
+        date: "02/22 (日)",
+        location: "奈良：古都文化與小鹿",
+        gourmet: [
+          { name: "志津香 (Shizuka)", type: "奈良釜飯", tag: "排隊名店", dist: "距離 奈良公園(冰室神社旁)", desc: "鍋巴飯香氣十足，建議開店前排隊。" },
+          { name: "中谷堂", type: "現搗麻糬", tag: "人氣名店", dist: "距離 近鐵奈良站 步行 2 分", desc: "現場搗麻糬表演，口感超軟Q。" },
+          { name: "Kamaiki (釜粋)", type: "烏龍麵", tag: "必比登推薦", dist: "距離 近鐵奈良站 步行 3 分", desc: "麵條Q彈，炸雞也很有名。" },
+          { name: "麵鬪庵", type: "豆皮福袋烏龍", tag: "打卡名店", dist: "距離 近鐵奈良站 步行 4 分", desc: "烏龍麵裝在大豆皮裡，造型可愛。" },
+          { name: "大佛布丁", type: "絲滑布丁", tag: "必買伴手禮", dist: "距離 JR奈良/近鐵奈良站內", desc: "口感綿密細緻，瓶子可留做紀念。" },
+          { name: "Sakura Burger", type: "手工漢堡", tag: "在地美食", dist: "距離 近鐵奈良站 步行 1 分", desc: "使用在地食材製作的厚實漢堡。" }
+        ],
+        events: [
+          { time: "10:00", title: "移動：前往 JR 奈良站", desc: "使用 JR Pass，抵達後於西口購買公車一日券。", icon: <Bus className="w-4 h-4" /> },
+          { 
+            time: "10:30", 
+            title: "興福寺 & 奈良公園", 
+            desc: "餵食小鹿首站。請注意：手拿鹿餅時請勿逗弄，小鹿可能會撞人或咬衣服。", 
+            icon: <MapPin className="w-4 h-4" /> 
+          },
+          { 
+            time: "13:30", 
+            title: "東大寺 (大佛殿)", 
+            desc: "世界最大木造建築。內部巨大的青銅佛像震撼人心。", 
+            tip: "注意事項：大佛右後方的柱子有個洞（大佛鼻孔），傳說鑽過去能保平安、長智慧，大人小孩都可挑戰。",
+            icon: <MapPin className="w-4 h-4" /> 
+          },
+          { 
+            time: "15:30", 
+            title: "二月堂 (登高絕景)", 
+            desc: "從東大寺側邊坡道往上走。這裡是奈良公園內看夕陽與俯瞰奈良市景最棒的位置。", 
+            tip: "注意事項：二月堂北側有免費的「龍美堂休息所」，提供茶水與安靜的休息空間，適合走累了來此充電。",
+            icon: <Coffee className="w-4 h-4" /> 
+          },
+        ]
+      },
+      {
+        id: 5,
+        dayLabel: "Day 5",
+        date: "02/23 (一)",
+        location: "歸途：神戶動物王國",
+        gourmet: [
+          { name: "長田本庄軒", type: "牛筋炒麵", tag: "神戶B級美食", dist: "距離 三宮 Center Plaza B1", desc: "牛筋蒟蒻炒麵，鹹香入味。" },
+          { name: "西村咖啡店", type: "老派早餐", tag: "神戶經典", dist: "距離 JR三宮站 步行 1 分", desc: "體驗復古神戶早餐文化。" },
+          { name: "551 Horai", type: "豬肉包", tag: "關西名物", dist: "距離 機場車站候機區", desc: "回國前必買，車上吃或帶回飯店。" },
+          { name: "神戶牛排 Mouriya", type: "鐵板燒", tag: "頂級神戶牛", dist: "三宮周邊", desc: "離開前若想吃大餐可考慮預約午間套餐。" }
+        ],
+        events: [
+          { time: "09:00", title: "退房 & 移動", desc: "搭乘 Port Liner 前往神戶動物王國。", icon: <MapPin className="w-4 h-4" /> },
+          { 
+            time: "09:30", 
+            title: "神戶動物王國", 
+            desc: "近距離接觸水豚、鯨頭鸛。全室內溫室，不受天氣影響。", 
+            tip: "Tip: 若這幾天累了，備案可換成「青少年科學館」就在附近。",
+            icon: <MapPin className="w-4 h-4" /> 
+          },
+          { time: "11:45", title: "前往機場 (UKB)", desc: "搭乘 Port Liner 僅需數分鐘即達機場。", icon: <Plane className="w-4 h-4" /> },
+        ]
+      }
+    ],
+    checklist: [
+      { label: "JR 關西迷你周遊券", desc: "行動電源" },
+      { label: "ICOCA / 西瓜卡", desc: "數位用藥" },
+      { label: "護照", desc: "保溫瓶" },
+      { label: "尿布用品", desc: "防曬帽子" },
+    ]
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
+      {/* Control Bar */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button 
+          onClick={handleDownloadImage}
+          disabled={!isLibLoaded || isGenerating}
+          className={`flex items-center gap-2 font-bold py-3 px-6 rounded-full shadow-lg transform transition disabled:opacity-50 disabled:cursor-not-allowed
+            ${!isLibLoaded 
+              ? 'bg-slate-500 text-white' 
+              : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105'}`}
+        >
+          {!isLibLoaded ? (
+             <span>元件載入中...</span>
+          ) : isGenerating ? (
+            <span>處理中...</span>
+          ) : (
+            <>
+              <Download className="w-5 h-5" />
+              <span>匯出行程 JPG</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Main Itinerary Container */}
+      <div 
+        ref={itineraryRef} 
+        className="max-w-2xl mx-auto bg-white shadow-2xl rounded-xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="bg-slate-50 p-8 text-center border-b border-slate-100">
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+              <Plane className="w-6 h-6" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-wide mb-2">{itineraryData.title}</h1>
+          <p className="text-slate-500 font-medium">{itineraryData.date} <span className="mx-2">•</span> {itineraryData.duration}</p>
+          <div className="mt-4 inline-block bg-white px-4 py-1.5 rounded-full border border-slate-200 text-sm text-slate-600 shadow-sm">
+            住宿：{itineraryData.hotel}
+          </div>
+        </div>
+
+        {/* Transport Info Box */}
+        <div className="px-6 py-4">
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
+            <h3 className="flex items-center font-bold text-green-800 mb-2">
+              <Train className="w-5 h-5 mr-2" />
+              {itineraryData.transportInfo.title}
+            </h3>
+            <div className="text-sm text-green-700 space-y-1">
+              <p><span className="font-semibold">使用日期：</span>{itineraryData.transportInfo.usageDays}</p>
+              <p><span className="font-semibold">適用範圍：</span>{itineraryData.transportInfo.scope}</p>
+              <p className="mt-2 text-green-800/80 italic">{itineraryData.transportInfo.note}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Days Loop */}
+        <div className="px-6 pb-8">
+          {itineraryData.days.map((day, index) => (
+            <div key={day.id} className="mb-8 relative">
+              {/* Day Header */}
+              <div className="flex items-center mb-6 sticky top-0 bg-white/95 backdrop-blur z-10 py-2 border-b border-slate-100 shadow-sm">
+                <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded mr-3">
+                  {day.dayLabel}
+                </span>
+                <h2 className="text-xl font-bold text-slate-800 flex-1">
+                  {day.location}
+                </h2>
+                <span className="text-slate-400 text-sm font-mono">{day.date}</span>
+              </div>
+
+              {/* Gourmet Section */}
+              {day.gourmet && day.gourmet.length > 0 && (
+                <div className="mx-3 mb-6 bg-orange-50 border border-orange-100 rounded-lg p-4">
+                  <h3 className="text-orange-800 font-bold flex items-center gap-2 mb-3 text-sm uppercase tracking-wide border-b border-orange-200 pb-2">
+                    <Utensils className="w-4 h-4" /> 
+                    必吃美食清單 ({day.gourmet.length}選)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {day.gourmet.map((item, gIdx) => (
+                      <div key={gIdx} className="bg-white p-3 rounded border border-orange-100 shadow-sm flex flex-col h-full relative overflow-hidden group hover:border-orange-300 transition-colors">
+                         <div className="absolute top-0 right-0">
+                           {item.tag.includes("必比登") ? (
+                             <span className="inline-flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
+                               <Award className="w-3 h-3" /> Bib
+                             </span>
+                           ) : (
+                             <span className="inline-flex items-center gap-1 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
+                               <Star className="w-3 h-3" /> {item.tag}
+                             </span>
+                           )}
+                         </div>
+
+                         <div className="mt-1 mb-1 pr-12">
+                             <span className="font-bold text-slate-800 text-sm block leading-tight">{item.name}</span>
+                             <span className="text-[10px] text-orange-600 font-medium uppercase">{item.type}</span>
+                         </div>
+                         
+                         <div className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit mb-2">
+                            <Footprints className="w-3 h-3" />
+                            {item.dist}
+                         </div>
+
+                         <p className="text-[11px] text-slate-500 leading-tight mt-auto border-t border-slate-100 pt-2">
+                           {item.desc}
+                         </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Items */}
+              <div className="ml-3 pl-6 border-l-2 border-slate-100 space-y-8 pb-4">
+                {day.events.map((event, eventIndex) => (
+                  <div key={eventIndex} className="relative group">
+                    <div className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 border-white shadow-sm flex items-center justify-center
+                      ${event.type === 'backup' ? 'bg-amber-400' : 'bg-slate-300 group-hover:bg-blue-400'} 
+                      transition-colors duration-300`}
+                    ></div>
+
+                    {event.type === 'backup' ? (
+                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 border-dashed relative">
+                          <div className="absolute -top-3 left-4 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                            Backup Plan
+                          </div>
+                          <div className="flex justify-between items-start mb-1 mt-1">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                               {event.title}
+                            </h3>
+                            <span className="text-xs font-mono text-slate-400">{event.time}</span>
+                          </div>
+                          <p className="text-sm text-slate-600 mb-2">{event.desc}</p>
+                          {event.details && (
+                            <ul className="list-disc list-inside text-xs text-slate-500 bg-white/50 p-2 rounded">
+                                {event.details.map((detail, i) => (
+                                    <li key={i}>{detail}</li>
+                                ))}
+                            </ul>
+                          )}
+                       </div>
+                    ) : (
+                      <div>
+                        <div className="flex justify-between items-baseline mb-1">
+                          <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2 leading-tight">
+                             {event.title}
+                          </h3>
+                          <span className="text-sm font-mono text-slate-400">{event.time}</span>
+                        </div>
+                        <p className="text-slate-600 mb-2 text-sm">{event.desc}</p>
+                        
+                        {event.details && (
+                            <ul className="space-y-1.5 mt-2">
+                                {event.details.map((detail, i) => (
+                                    <li key={i} className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                                        {detail}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+
+                        {event.action && (
+                          <div className="bg-purple-50 text-purple-700 text-xs p-3 rounded-lg mt-2 border border-purple-100 font-medium">
+                             {event.action}
+                          </div>
+                        )}
+
+                        {event.tip && (
+                          <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg mt-2 flex gap-2 items-start border border-blue-100">
+                             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                             <span>{event.tip}</span>
+                          </div>
+                        )}
+                        {event.isWarning && (
+                          <div className="bg-red-50 text-red-700 text-xs p-3 rounded-lg mt-2 border border-red-100 flex gap-2 items-start">
+                             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                             <span>{event.note}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Checklist */}
+        <div className="bg-slate-50 p-8 border-t border-slate-200">
+          <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <CheckSquare className="w-5 h-5" /> 出發檢查清單
+          </h3>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            {itineraryData.checklist.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-200 pb-1">
+                <span className="font-medium text-slate-600">{item.label}</span>
+                <span className="text-slate-400">{item.desc}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 text-center text-[10px] text-slate-300 uppercase tracking-widest">
+            Detailed Itinerary Optimized for You
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ItineraryApp;
